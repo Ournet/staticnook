@@ -1,0 +1,38 @@
+
+src: tests
+out: tests
+
+# S3 info
+s3:
+  key: AKIdhfdhHBCLrgreNQNQ
+  secret: HKS9kKAocrtdbgrtg51i8z5n732SkKc5PtKNwh
+  bucket: assets
+  region: eu-west-1
+
+# all transforms
+transforms:
+# top20 transforms:
+  - type: [cssmin]
+    path: top20/css
+    files: [main.css, layout.css]
+    out: test1-temp.min.css
+  - type: [gzip]
+    path: top20/css
+    files: [test1-temp.min.css]
+    out: test1-temp.min.gz.css
+
+# all uploads
+uploads:
+# top20 uploads
+  # css
+  - path: top20/css
+    files: ['**/*-temp.min.css']
+    headers:
+      Cache-Control: public, max-age=10368000
+      x-amz-acl: public-read
+  - path: top20/css
+    files: ['**/*-temp.min.gz.css']
+    headers:
+      Cache-Control: public, max-age=10368000
+      x-amz-acl: public-read
+      Content-Encoding: gzip

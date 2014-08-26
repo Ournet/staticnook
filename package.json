@@ -1,0 +1,37 @@
+{
+  "name": "staticnook",
+  "version": "0.0.2",
+  "description": "manage static resources",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mitica/staticnook.git"
+  },
+  "keywords": [
+    "asset",
+    "assets",
+    "static",
+    "s3"
+  ],
+  "author": "Dumitru Cantea",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mitica/staticnook/issues"
+  },
+  "homepage": "https://github.com/Mitica/staticnook",
+  "dependencies": {
+    "clean-css": "^2.2.14",
+    "glob": "^4.0.5",
+    "js-yaml": "^3.2.1",
+    "knox": "^0.9.1",
+    "node-fs": "^0.1.7",
+    "taskgroup": "^4.0.5",
+    "uglify-js": "^2.4.15"
+  },
+  "bin": {
+    "staticnook": "./bin/staticnook"
+  }
+}

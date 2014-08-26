@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+
+var staticnook = require('../src/staticnook');
+var path = require('path');
+
+var root = process.cwd();
+var configfile = path.join(root,'staticnook.yml');
+
+console.log(configfile);
+
+staticnook.run(root, configfile);
