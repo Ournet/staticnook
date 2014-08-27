@@ -12,9 +12,9 @@ s3:
 # all transforms
 transforms:
 # top20 transforms:
-  - type: [cssmin]
+  - type: [less, cssmin]
     path: top20/css
-    files: [main.css, layout.css]
+    files: [main.less, layout.css]
     out: test1-temp.min.css
   - type: [gzip]
     path: top20/css
@@ -36,3 +36,4 @@ uploads:
       Cache-Control: public, max-age=10368000
       x-amz-acl: public-read
       Content-Encoding: gzip
+

@@ -1,13 +1,13 @@
 var path = require('path');
 var fs = require('node-fs');
 var glob = require('glob');
-var TaskGroup = require('taskgroup').TaskGroup;
+var async = require('async');
 
 var staticnook = module.exports = {
 	run: function(dir, options){
 		console.log('running staticnook...');
 		options = getOptions(options);
-		console.log(options);
+		//console.log(options);
 		options.dir = dir;
 		transform(options, function(){
 			console.log('end transforms');
@@ -59,7 +59,7 @@ function upload(options){
 			//console.log(file);
 			console.log('uploading... ' + file);
 			if(!fs.existsSync(file)) throw new Error('not found file');
-			console.log(item.headers)
+			//console.log(item.headers)
 			client.putFile(file, outfile, item.headers, function(err, res){
 			  // Always either do something with `res` or at least call `res.resume()`.
 			  if(err){
@@ -69,9 +69,8 @@ function upload(options){
 			  res.resume();
 			  if(200 == res.statusCode)
 			  	console.log('uploaded!');
-			  //}else{
-			  	//console.log(res);
-			  //}
+			  else
+			  	console.log('not uploaded!!!');
 			});
 		}
 		//client.
@@ -85,72 +84,67 @@ function transform(options, cb){
 	var cssmin = require('./cssmin');
 	var jsmin = require('./jsmin');
 	var gzip = require('./gzip');
+	var less = require('./less');
 
-	// Create our parallel task group
-	var tasks = new TaskGroup({concurrency:1});
-
-	for (var i = 0; i < transforms.length; i++) {
-		var t = transforms[i];
-		tasks.addTask(function(complete){
-			transformFn(t, options, {cssmin:cssmin,jsmin:jsmin,gzip:gzip}, function(){
+	var TransformUtil = {
+		modules: {cssmin:cssmin, jsmin:jsmin, gzip:gzip, less:less},
+		options: options,
+		transform: function(t, callback){ 
+			transformFn(t, this.options, this.modules, function(){
 				console.log('done one transform item');
-				complete(null);
+				callback(null);
 			});
-		});
-	}
+		}
+	};
 
-	tasks.done(function(){
+	async.map(transforms, TransformUtil.transform.bind(TransformUtil), function(err, result){
 		cb();
 	});
-
-	tasks.run();
 }
 
 function transformFn(t, options, modules, cb){
 	var paths = [];
+	if(!isArray(t.type)) return cb();
 	if(t.files.length==0){
-		console.log('no files!');
+		console.log('no files in transform!');
 		return cb();
 	}
 	for (var j = 0; j < t.files.length; j++) {
 		var file = t.files[j];
-		var p = formatPath(options.dir,options.src,t.path,file);
-		console.log(p);
+		var p = formatPath(options.dir, t.out ? options.out: options.src,t.path,file);
+		//console.log(p);
 		paths.push(p);
 	}
 
 	var files = readPaths(paths);
 
 	if(files.length==0){
-		console.log('no files!');
+		console.log('no files readed from paths!');
+		console.log(paths);
 		return cb();
 	}
 
 	var data = files.join('\n');
 
-	console.log(data);
+	//console.log(data);
 
 	var outputFile = formatPath(options.dir,options.out,t.path,t.out);
 
-	var tasks = new TaskGroup({concurrency:1});
-
-	for (var j = 0; j < t.type.length; j++) {
-		var tp = t.type[j];
-		tasks.addTask(function(complete){
-			aTransformFn(tp, data, modules, function(err, result){
+	var TypeUtil={
+		data: data,
+		modules: modules,
+		transform: function(tp, callback){
+			aTransformFn(tp, data, this.modules, function(err, result){
 				data = result;
-				complete(err, result);
+				callback(err, result);
 			});
-		});
-	}
+		}
+	};
 
-	tasks.done(function(err, results){
+	async.map(t.type, TypeUtil.transform.bind(TypeUtil), function(err, result){
 		writeFile(outputFile, data);
 		cb();
 	});
-
-	// Execute the task group
-	tasks.run();
 }
 
 function aTransformFn(tp, data, modules, cb){
@@ -165,6 +159,10 @@ function aTransformFn(tp, data, modules, cb){
 		break;
 		case 'gzip':
 		modules.gzip.compress(data, cb);
+		break;
+		case 'less':
+		console.log('less rendering: '+data);
+		modules.less.render(data,{}, cb);
 		break;
 		default:
 		console.log('no transform type: ' + tp);
