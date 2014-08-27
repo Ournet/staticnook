@@ -1,12 +1,44 @@
 var lessObj = require('less')
+var path = require('path')
+var fs = require('fs')
 
 var less = module.exports = {
-  render: function(data, options, cb){
-    options = options || {};
-    lessObj.render(data, options, function (e, css) {
-      //console.log([e,css]);
-      //console.log('done less!');
-      cb(e, css);
+  render: function(data, filename, cb){
+    //var content = getFileContent(data, filename);
+    //console.log('css rendering: '+content);
+    lessObj.render(data, {filename:filename}, function (e, css) {
+      if(e){
+        console.log(e);
+        return cb(e, css);
+      }
+      //console.log('result: '+css);
+      cb(e,css);
     });
   }
+}
+
+function getFileContent(data, filename){
+  var info = getImportInfo(data);
+  if(info == null) return data;
+  filename = path.join(path.dirname(filename),info.name+'.less');
+  console.log('new file: '+filename);
+  var fdata = getFileData(filename);
+  //console.log(fdata);
+  data = data.replace(info.value, fdata);
+  console.log('new data:')
+  console.log(data)
+  return getFileContent(data, filename);
+}
+
+function getFileData(filename){
+    return fs.readFileSync(filename);
+}
+
+function getImportInfo(data){
+  var importRe = /@import "([\w\d_\.\/-]+)\.less";/;
+  var re = importRe.exec(data);
+  if(re && re.index>-1){
+    return {index: re.index, value: re[0], name: re[1]};
+  }
+  return null;
 }

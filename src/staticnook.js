@@ -97,7 +97,7 @@ function transform(options, cb){
 		}
 	};
 
-	async.map(transforms, TransformUtil.transform.bind(TransformUtil), function(err, result){
+	async.mapSeries(transforms, TransformUtil.transform.bind(TransformUtil), function(err, result){
 		cb();
 	});
 }
@@ -111,7 +111,7 @@ function transformFn(t, options, modules, cb){
 	}
 	for (var j = 0; j < t.files.length; j++) {
 		var file = t.files[j];
-		var p = formatPath(options.dir, t.out ? options.out: options.src,t.path,file);
+		var p = formatPath(options.dir, t.out === true ? options.out: options.src,t.path,file);
 		//console.log(p);
 		paths.push(p);
 	}
@@ -133,21 +133,30 @@ function transformFn(t, options, modules, cb){
 	var TypeUtil={
 		data: data,
 		modules: modules,
+		paths: paths,
+		//results:[],
 		transform: function(tp, callback){
-			aTransformFn(tp, data, this.modules, function(err, result){
-				data = result;
+			var self=this;
+			console.log('doing transform: '+tp);
+			//console.log(this.data);
+			//console.log('=============')
+			aTransformFn(tp, this.data, this.paths, this.modules, function(err, result){
+				self.data = result;
 				callback(err, result);
 			});
 		}
 	};
 
-	async.map(t.type, TypeUtil.transform.bind(TypeUtil), function(err, result){
-		writeFile(outputFile, data);
+	async.mapSeries(t.type, TypeUtil.transform.bind(TypeUtil), function(err, result){
+		//console.log('all result: '+result);
+		writeFile(outputFile, TypeUtil.data);
+		//console.log('results list:');
+		//console.log(TypeUtil.results)
 		cb();
 	});
 }
 
-function aTransformFn(tp, data, modules, cb){
+function aTransformFn(tp, data, filenames, modules, cb){
 	switch(tp){
 		case 'cssmin':
 		data = modules.cssmin.minify(data);
@@ -161,8 +170,8 @@ function aTransformFn(tp, data, modules, cb){
 		modules.gzip.compress(data, cb);
 		break;
 		case 'less':
-		console.log('less rendering: '+data);
-		modules.less.render(data,{}, cb);
+		//console.log('less rendering: '+data);
+		modules.less.render(data,filenames[0], cb);
 		break;
 		default:
 		console.log('no transform type: ' + tp);
