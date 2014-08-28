@@ -18,15 +18,8 @@ transforms:
       path: top20/css
       files: [main.less, layout.css]
     output:
-      file: top20/css/test1-temp.min.css
-  - type: [gzip]
-    input:
-      mtime: 600
-      path: top20/css
-      out: true
-      files: [test1-temp.min.css]
-    output:
-      file: top20/css/test1-temp.min.gz.css
+      file: top20/css/temp-{hash}.min.css
+      gzip: top20/css/temp-{hash}.min.gz.css
 
 # all uploads
 uploads:

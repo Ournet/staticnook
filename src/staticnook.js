@@ -3,13 +3,20 @@ var fs = require('node-fs');
 var glob = require('glob');
 var async = require('async');
 var util = require('util');
+var crypto = require('crypto');
+
+var logfile;
 
 var staticnook = module.exports = {
 	run: function(dir, options){
 		console.log('running staticnook...');
 		options = getOptions(options);
 		//console.log(options);
+		logfile = path.join(dir, 'staticnook.log')
 		options.dir = dir;
+		log('===============================');
+		log('START: '+ new Date())
+		log('===============================');
 		console.log('TRANSFORMS');
 		console.log('==================================');
 		transform(options, function(){
@@ -18,6 +25,10 @@ var staticnook = module.exports = {
 			upload(options);
 		});
 	}
+}
+
+function log(str){
+	fs.appendFileSync(logfile, str+'\n');
 }
 
 function upload(options){
@@ -52,7 +63,7 @@ function upload(options){
 
 		if(files.length==0){
 			console.log('not found files for upload');
-			console.log(paths);
+			//console.log(paths);
 			continue;
 		}
 
@@ -123,7 +134,7 @@ function transformFn(t, options, modules, cb){
 	for (var j = 0; j < t.input.files.length; j++) {
 		var file = t.input.files[j];
 		var p = formatPath(options.dir, t.input.out === true ? options.out: options.src, t.input.path, file);
-		console.log(p);
+		//console.log(p);
 		paths.push(p);
 	}
 
@@ -131,15 +142,13 @@ function transformFn(t, options, modules, cb){
 
 	if(files.length==0){
 		console.log('no files readed from paths!');
-		console.log(paths);
+		//console.log(paths);
 		return cb();
 	}
 
 	var data = files.join('\n');
 
 	//console.log(data);
-
-	var outputFile = formatPath(options.dir, options.out, t.output.file);
 
 	var TypeUtil={
 		data: data,
@@ -159,11 +168,33 @@ function transformFn(t, options, modules, cb){
 	};
 
 	async.mapSeries(t.type, TypeUtil.transform.bind(TypeUtil), function(err, result){
-		//console.log('all result: '+result);
+		if(err) return cb(err);
+
+		var filename = t.output.file;
+		var hash = null;
+		if(filename.indexOf('{hash}') > -1)
+		{
+			var md5 = crypto.createHash('md5');
+			md5.update(TypeUtil.data);
+			hash = md5.digest('hex');
+			filename = filename.replace('{hash}', hash);
+		}
+		var outputFile = formatPath(options.dir, options.out, filename);
 		writeFile(outputFile, TypeUtil.data);
-		//console.log('results list:');
-		//console.log(TypeUtil.results)
-		cb();
+
+		if(isString(t.output.gzip)){
+			aTransformFn('gzip',TypeUtil.data,null, TypeUtil.modules, function(err, result){
+				if(err) return cb(err);
+
+				var gzipfilename = t.output.gzip;
+				if(gzipfilename.indexOf('{hash}')>-1)
+					gzipfilename = gzipfilename.replace('{hash}',hash);
+				var gzipfile = formatPath(options.dir, options.out, gzipfilename);
+				//console.log('writing gzip file: '+gzipfile);
+				writeFile(gzipfile, result);
+				cb();
+			});
+		} else cb();
 	});
 }
 
@@ -221,7 +252,7 @@ function getFiles(paths, options){
 					cfiles.push(file);
 				} else {
 					console.log(file + ' - not changed');
-					console.log((t + mtime) +' < '+ now);
+					//console.log((t + mtime) +' < '+ now);
 				}
 			}
 		}
@@ -258,10 +289,12 @@ function formatPath(){
 }
 
 function writeFile(file, data){
+	console.log('writing file: ' + file);
 	var p = path.dirname(file);
 	if(!fs.existsSync(p))
 		fs.mkdirSync(p, 0777, true);
 	fs.writeFileSync(file, data);
+	log(path.basename(file));
 }
 
 function isString(obj){
