@@ -13,27 +13,43 @@ s3:
 transforms:
 # top20 transforms:
   - type: [less, cssmin]
-    path: top20/css
-    files: [main.less, layout.css]
-    out: test1-temp.min.css
+    input:
+      mtime: 600
+      path: top20/css
+      files: [main.less, layout.css]
+    output:
+      file: top20/css/test1-temp.min.css
   - type: [gzip]
-    path: top20/css
-    files: [test1-temp.min.css]
-    out: test1-temp.min.gz.css
+    input:
+      mtime: 600
+      path: top20/css
+      out: true
+      files: [test1-temp.min.css]
+    output:
+      file: top20/css/test1-temp.min.gz.css
 
 # all uploads
 uploads:
 # top20 uploads
   # css
-  - path: top20/css
-    files: ['**/*-temp.min.css']
-    headers:
-      Cache-Control: public, max-age=10368000
-      x-amz-acl: public-read
-  - path: top20/css
-    files: ['**/*-temp.min.gz.css']
-    headers:
-      Cache-Control: public, max-age=10368000
-      x-amz-acl: public-read
-      Content-Encoding: gzip
+  - mode: dev
+    # dev mode will remove Cache-Control header
+    input:
+      mtime: 60
+      path: top20/css
+      files: ['**/*-temp.min.css']
+    output:
+      prefix: top20
+      headers:
+        Cache-Control: public, max-age=10368000
+        x-amz-acl: public-read
+  - input:
+      mtime: 60
+      path: top20/css
+      files: ['**/*-temp.min.gz.css']
+    output:
+      headers:
+        Cache-Control: public, max-age=10368000
+        x-amz-acl: public-read
+        Content-Encoding: gzip
 

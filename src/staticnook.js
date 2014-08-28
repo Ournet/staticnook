@@ -2,6 +2,7 @@ var path = require('path');
 var fs = require('node-fs');
 var glob = require('glob');
 var async = require('async');
+var util = require('util');
 
 var staticnook = module.exports = {
 	run: function(dir, options){
@@ -9,8 +10,11 @@ var staticnook = module.exports = {
 		options = getOptions(options);
 		//console.log(options);
 		options.dir = dir;
+		console.log('TRANSFORMS');
+		console.log('==================================');
 		transform(options, function(){
-			console.log('end transforms');
+			console.log('UPLOADS');
+			console.log('==================================');
 			upload(options);
 		});
 	}
@@ -33,21 +37,21 @@ function upload(options){
 
 	for (var i = list.length - 1; i >= 0; i--) {
 		var item = list[i];
-		if(item.files.length==0){
+		if(item.input.files.length==0){
 			console.log('no file in upload');
 			continue;
 		}
 
 		var paths = [];
-		for (var j = item.files.length - 1; j >= 0; j--) {
-			var file = item.files[j];
-			var p = formatPath(options.out,item.path, file);
+		for (var j = item.input.files.length - 1; j >= 0; j--) {
+			var file = item.input.files[j];
+			var p = formatPath(options.out, item.input.path, file);
 			paths.push(p);
 		}
-		var files = getFiles(paths);
+		var files = getFiles(paths, {mtime: item.input.mtime});
 
 		if(files.length==0){
-			console.log('not found files');
+			console.log('not found files for upload');
 			console.log(paths);
 			continue;
 		}
@@ -57,10 +61,16 @@ function upload(options){
 			var outfile = file;
 			if(isString(options.out)) outfile = outfile.substr(options.out.length);
 			//console.log(file);
-			console.log('uploading... ' + file);
+			if(isString(item.output.prefix)) outfile = path.join(item.output.prefix, outfile);
+
+			console.log('uploading... ' + outfile);
 			if(!fs.existsSync(file)) throw new Error('not found file');
 			//console.log(item.headers)
-			client.putFile(file, outfile, item.headers, function(err, res){
+			if(item.mode === 'dev' && item.output.headers){
+				console.log('dev mode: removing Cache-Control...');
+				item.output.headers['Cache-Control'] = item.output.headers['cache-control'] = null;
+			}
+			client.putFile(file, outfile, item.output.headers, function(err, res){
 			  // Always either do something with `res` or at least call `res.resume()`.
 			  if(err){
 			  	console.log(err);
@@ -105,18 +115,19 @@ function transform(options, cb){
 function transformFn(t, options, modules, cb){
 	var paths = [];
 	if(!isArray(t.type)) return cb();
-	if(t.files.length==0){
+	if(t.input.files.length==0){
 		console.log('no files in transform!');
 		return cb();
 	}
-	for (var j = 0; j < t.files.length; j++) {
-		var file = t.files[j];
-		var p = formatPath(options.dir, t.out === true ? options.out: options.src,t.path,file);
-		//console.log(p);
+	//console.log(t);
+	for (var j = 0; j < t.input.files.length; j++) {
+		var file = t.input.files[j];
+		var p = formatPath(options.dir, t.input.out === true ? options.out: options.src, t.input.path, file);
+		console.log(p);
 		paths.push(p);
 	}
 
-	var files = readPaths(paths);
+	var files = readPaths(paths, {mtime: t.input.mtime, any: true });
 
 	if(files.length==0){
 		console.log('no files readed from paths!');
@@ -128,7 +139,7 @@ function transformFn(t, options, modules, cb){
 
 	//console.log(data);
 
-	var outputFile = formatPath(options.dir,options.out,t.path,t.out);
+	var outputFile = formatPath(options.dir, options.out, t.output.file);
 
 	var TypeUtil={
 		data: data,
@@ -136,8 +147,8 @@ function transformFn(t, options, modules, cb){
 		paths: paths,
 		//results:[],
 		transform: function(tp, callback){
-			var self=this;
-			console.log('doing transform: '+tp);
+			var self = this;
+			console.log('transforming: ' + tp);
 			//console.log(this.data);
 			//console.log('=============')
 			aTransformFn(tp, this.data, this.paths, this.modules, function(err, result){
@@ -180,17 +191,49 @@ function aTransformFn(tp, data, filenames, modules, cb){
 	}
 }
 
-function readPaths(paths){
-	return readFiles(getFiles(paths));
+function readPaths(paths, time){
+	return readFiles(getFiles(paths, time));
 }
 
 function getFiles(paths, options){
-	var result=[];
-	for (var i = 0; i < paths.length; i++) {
-		var p = paths[i];
-		var files = glob.sync(p, options);
-		result = result.concat(files);
+	var result = [];
+	options = options || {};
+	var timef = options.mtime && options.mtime > 0;
+
+	if(timef){
+		var mtime = options.mtime * 1000;
+		var cfiles = [];
+		var any = options.any === true;
+		var now = new Date().getTime();
+		//console.log('now: ' + new Date());
+		//console.log(options);
+		for (var i = 0; i < paths.length; i++) {
+			var p = paths[i];
+			var files = glob.sync(p);
+			result = result.concat(files);
+		
+			for (var j = 0; j < files.length; j++) {
+				var file = files[j];
+				var stats = fs.statSync(file);
+				var t = stats.mtime.getTime();
+				//console.log(stats.mtime);
+				if(t + mtime >= now){
+					cfiles.push(file);
+				} else {
+					console.log(file + ' - not changed');
+					console.log((t + mtime) +' < '+ now);
+				}
+			}
+		}
+		result = any && cfiles.length > 0 ? result : cfiles;
+	}else{
+		for (var i = 0; i < paths.length; i++) {
+			var p = paths[i];
+			var files = glob.sync(p);
+			result = result.concat(files);
+		}
 	}
+
 	return result;
 }
 
