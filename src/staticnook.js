@@ -82,7 +82,9 @@ function upload(options){
 			//console.log(item.headers)
 			if(item.mode === 'dev' && item.output.headers){
 				console.log('dev mode: removing Cache-Control...');
-				item.output.headers['Cache-Control'] = item.output.headers['cache-control'] = null;
+				if(item.output.headers['cache-control'])
+					delete item.output.headers['cache-control'];
+				item.output.headers['Cache-Control'] = 'private';
 			}
 			client.putFile(file, outfile, item.output.headers, function(err, res){
 			  // Always either do something with `res` or at least call `res.resume()`.
@@ -208,8 +210,11 @@ function aTransformFn(tp, data, filenames, modules, cb){
 		cb(null,data);
 		break;
 		case 'jsmin':
-		data = modules.jsmin.minify(data);
-		cb(null,data);
+		//console.log('js minifing...');
+		data = modules.jsmin.minify(data, {fromString: true,mangle: true});
+		//console.log('js minified!');
+		//console.log(JSON.stringify(data));
+		cb(null,data.code);
 		break;
 		case 'gzip':
 		modules.gzip.compress(data, cb);
@@ -260,7 +265,7 @@ function getFiles(paths, options){
 				if(t + mtime >= now){
 					cfiles.push(file);
 				} else {
-					console.log(file + ' - not changed');
+					//console.log(file + ' - not changed');
 					//console.log((t + mtime) +' < '+ now);
 				}
 			}
