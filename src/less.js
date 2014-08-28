@@ -3,17 +3,12 @@ var path = require('path')
 var fs = require('fs')
 
 var less = module.exports = {
-  render: function(data, filename, cb){
+  render: function(data, options, cb){
+    //console.log('options: ');
+    //console.log(options);
     //var content = getFileContent(data, filename);
     //console.log('css rendering: '+content);
-    lessObj.render(data, {filename:filename}, function (e, css) {
-      if(e){
-        console.log(e);
-        return cb(e, css);
-      }
-      //console.log('result: '+css);
-      cb(e,css);
-    });
+    lessObj.render(data, options, cb);
   }
 }
 

@@ -19,7 +19,10 @@ var staticnook = module.exports = {
 		log('===============================');
 		console.log('TRANSFORMS');
 		console.log('==================================');
-		transform(options, function(){
+		transform(options, function(err){
+			if(err){
+				return console.log(err);
+			}
 			console.log('UPLOADS');
 			console.log('==================================');
 			upload(options);
@@ -119,7 +122,7 @@ function transform(options, cb){
 	};
 
 	async.mapSeries(transforms, TransformUtil.transform.bind(TransformUtil), function(err, result){
-		cb();
+		cb(err, result);
 	});
 }
 
@@ -213,7 +216,13 @@ function aTransformFn(tp, data, filenames, modules, cb){
 		break;
 		case 'less':
 		//console.log('less rendering: '+data);
-		modules.less.render(data,filenames[0], cb);
+		var paths=[];
+		for (var i = 0; i < filenames.length; i++) {
+			var filename = filenames[i];
+			var dirname = path.dirname(filename);
+			if(paths.indexOf(dirname)<0) paths.push(dirname);
+		}
+		modules.less.render(data, {paths: paths, filename:filenames[0]}, cb);
 		break;
 		default:
 		console.log('no transform type: ' + tp);
