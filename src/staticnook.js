@@ -58,7 +58,7 @@ function upload(options){
 
 		var paths = [];
 		var root = item.input.root || options.out;
-		
+
 		for (var j = item.input.files.length - 1; j >= 0; j--) {
 			var file = item.input.files[j];
 			var p = formatPath(root, item.input.path, file);
@@ -150,7 +150,7 @@ function transformFn(t, options, modules, cb){
 
 	if(files.length==0){
 		console.log('no files readed from paths!');
-		//console.log(paths);
+		console.log(paths);
 		return cb();
 	}
 
@@ -182,9 +182,10 @@ function transformFn(t, options, modules, cb){
 		var hash = null;
 		if(filename.indexOf('{hash}') > -1)
 		{
-			var md5 = crypto.createHash('md5');
+			var md5 = crypto.createHash('sha1');
 			md5.update(TypeUtil.data);
 			hash = md5.digest('hex');
+			hash = hash.substring(0,8);
 			filename = filename.replace('{hash}', hash);
 		}
 		var outputFile = formatPath(options.dir, options.out, filename);
