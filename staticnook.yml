@@ -29,6 +29,8 @@ uploads:
     # dev mode will remove Cache-Control header
     input:
       mtime: 60
+      #root - replace the 'out' root option
+      root: tests
       path: top20/css
       files: ['**/*-temp.min.css']
     output:

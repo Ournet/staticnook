@@ -57,9 +57,11 @@ function upload(options){
 		}
 
 		var paths = [];
+		var root = item.input.root || options.out;
+		
 		for (var j = item.input.files.length - 1; j >= 0; j--) {
 			var file = item.input.files[j];
-			var p = formatPath(options.out, item.input.path, file);
+			var p = formatPath(root, item.input.path, file);
 			paths.push(p);
 		}
 		var files = getFiles(paths, {mtime: item.input.mtime});
@@ -73,7 +75,7 @@ function upload(options){
 		for (var j = 0; j < files.length; j++) {
 			var file = files[j];
 			var outfile = file;
-			if(isString(options.out)) outfile = outfile.substr(options.out.length);
+			if(isString(root)) outfile = outfile.substr(root.length);
 			//console.log(file);
 			if(isString(item.output.prefix)) outfile = path.join(item.output.prefix, outfile);
 
@@ -136,9 +138,10 @@ function transformFn(t, options, modules, cb){
 		return cb();
 	}
 	//console.log(t);
+	var root = t.input.root || options.src;
 	for (var j = 0; j < t.input.files.length; j++) {
 		var file = t.input.files[j];
-		var p = formatPath(options.dir, t.input.out === true ? options.out: options.src, t.input.path, file);
+		var p = formatPath(options.dir, root, t.input.path, file);
 		//console.log(p);
 		paths.push(p);
 	}
